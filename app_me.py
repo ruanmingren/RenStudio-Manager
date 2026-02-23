@@ -319,3 +319,36 @@ def hien_thi():
                 st.success(f"## 💵 TỔNG THỰC LÃNH: {luong_thuc_lanh:,} VNĐ")
             else:
                 st.warning("Vui lòng chọn đầy đủ 'Từ ngày' và 'Đến ngày' để hệ thống tính toán.")            
+
+
+                st.markdown("---")
+    st.subheader("📢 Quản lý Bảng Thông Báo (Sidebar)")
+    
+    # Khu vực Sếp soạn thông báo
+    with st.expander("📝 Viết thông báo mới", expanded=False):
+        tb_title = st.text_input("Tiêu đề thông báo (VD: Cập nhật rule ONA 7.1.111):")
+        tb_content = st.text_area("Nội dung chi tiết:")
+        if st.button("🚀 Phát loa thông báo", type="primary"):
+            if tb_title and tb_content:
+                db.tao_thong_bao(tb_title, tb_content)
+                st.success("Đã ghim thông báo lên bảng của anh em!")
+                st.rerun()
+            else:
+                st.warning("⚠️ Sếp nhập đủ tiêu đề và nội dung nhé!")
+
+    # Khu vực quản lý/xóa thông báo cũ
+    st.write("**Lịch sử thông báo đã phát:**")
+    ds_tb = db.lay_danh_sach_thong_bao()
+    if ds_tb:
+        for tb in ds_tb:
+            with st.container(border=True):
+                col_tb1, col_tb2 = st.columns([4, 1])
+                with col_tb1:
+                    st.markdown(f"**{tb['title']}** ({tb['time']})")
+                    st.write(tb['content'])
+                with col_tb2:
+                    if st.button("🗑️ Xóa", key=f"del_tb_{tb['id']}"):
+                        db.xoa_thong_bao(tb['id'])
+                        st.success("Đã xóa thông báo!"); st.rerun()
+    else:
+        st.info("Chưa có thông báo nào trên bảng.")

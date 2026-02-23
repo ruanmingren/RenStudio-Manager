@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 import streamlit as st
+import datetime # Sếp xem trên đầu file có chưa, chưa có thì Sếp thêm dòng này vào nhé
 import json
 
 # ==========================================
@@ -113,6 +114,14 @@ def leader_yeu_cau_sua(task_id, ly_do):
     })
     return True
 
+def tra_lai_task(task_id):
+    # Hàm này gỡ tên Artist ra và ném task trở lại Chợ (trạng thái Open)
+    db.collection("tasks").document(task_id).update({
+        "status": "Open",
+        "assignee": ""
+    })
+    return True
+
 def boss_duyet_task(task_id):
     # Lấy ngày hiện tại để làm ngày hoàn thành
     ngay_hoan_thanh = datetime.now().strftime("%d/%m/%Y")
@@ -151,4 +160,28 @@ def tinh_tong_chi_phi_du_an():
 
 def xoa_task(task_id):
     db.collection("tasks").document(task_id).delete()
+    return True
+
+
+def tao_thong_bao(tieu_de, noi_dung):
+    # Dùng thời gian thực làm ID để thông báo mới luôn xếp lên đầu
+    tb_id = str(int(datetime.datetime.now().timestamp()))
+    thong_bao = {
+        "id": tb_id,
+        "title": tieu_de,
+        "content": noi_dung,
+        "time": datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    }
+    db.collection("announcements").document(tb_id).set(thong_bao)
+    return True
+
+def lay_danh_sach_thong_bao():
+    tb_ref = db.collection("announcements").stream()
+    danh_sach = [doc.to_dict() for doc in tb_ref]
+    # Sắp xếp để cái nào mới đăng sẽ nằm trên cùng
+    danh_sach.sort(key=lambda x: x.get("id", ""), reverse=True)
+    return danh_sach
+
+def xoa_thong_bao(tb_id):
+    db.collection("announcements").document(tb_id).delete()
     return True

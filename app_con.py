@@ -20,6 +20,21 @@ def hien_thi():
     username_id = user_info["username"]
     ten_nhan_su = user_info["name"]
     
+    # === GẮN BẢNG THÔNG BÁO VÀO CỘT TRÁI (SIDEBAR) - ĐÃ CHUYỂN VÀO ĐÂY ===
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("📢 Bảng Tin Studio")
+        ds_tb = db.lay_danh_sach_thong_bao()
+        
+        if ds_tb:
+            for tb in ds_tb:
+                with st.container(border=True):
+                    st.markdown(f"**{tb['title']}**")
+                    st.caption(f"🕒 {tb['time']}")
+                    st.write(tb['content'])
+        else:
+            st.info("Hiện không có thông báo nào mới.")
+
     # 1. KIỂM TRA THÔNG BÁO THĂNG RANK & BÓNG BAY (10 giây)
     all_users = db.lay_danh_sach_nhan_su()
     u_data = next((u for u in all_users if u['username'] == username_id), None)
@@ -61,7 +76,7 @@ def hien_thi():
     st.markdown("---")
     tasks = db.lay_danh_sach_task()
     
-    # 3. VIỆC ĐANG LÀM & CẦN SỬA
+# 3. VIỆC ĐANG LÀM & CẦN SỬA
     st.subheader("📝 Việc đang làm & Cần sửa")
     task_dang_lam = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") in ["In_Progress", "Revise"]]
     
@@ -77,10 +92,20 @@ def hien_thi():
                 st.error(f"🚨 YÊU CẦU SỬA: {t.get('Leader_Feedback', '')}")
             
             link_nop = st.text_input("🔗 Dán link Google Drive nộp bài:", key=f"link_{t.get('id')}")
-            if st.button("📤 Gửi bài cho Leader", key=f"nop_{t.get('id')}", type="primary"):
-                if link_nop:
-                    db.nop_bai(t.get("id"), link_nop)
-                    st.success("Đã nộp bài!"); st.rerun()
+            
+            # --- TUI CHIA 2 CỘT CHO NÚT NỘP VÀ TRẢ TASK ĐẸP MẮT ---
+            col_nop, col_tra = st.columns(2)
+            with col_nop:
+                if st.button("📤 Gửi bài cho Leader", key=f"nop_{t.get('id')}", type="primary", use_container_width=True):
+                    if link_nop:
+                        db.nop_bai(t.get("id"), link_nop)
+                        st.success("Đã nộp bài!"); st.rerun()
+            with col_tra:
+                # ---> NÚT TRẢ TASK NẰM Ở ĐÂY MỚI CHUẨN <---
+                if st.button(f"⚠️ Bỏ nhận (Trả về Chợ)", key=f"tra_{t['id']}", type="secondary", use_container_width=True):
+                    db.tra_lai_task(t['id'])
+                    st.warning(f"Đã trả task '{t['name']}' về Chợ thành công!")
+                    st.rerun()
 
     # 4. BÀI ĐÃ NỘP (DẠNG NGĂN KÉO GỌN GÀNG)
     st.subheader("⏳ Bài đã nộp (Đang chờ duyệt)")
@@ -99,6 +124,7 @@ def hien_thi():
                 if new_link:
                     db.sua_link_nop(t["id"], new_link)
                     st.success("Đã cập nhật link mới!"); st.rerun()
+    
 
     st.markdown("---")
     
