@@ -119,6 +119,10 @@ def show_login_page():
             else:
                 st.error("Sai tên đăng nhập hoặc mật khẩu!")
 
+    # THÊM TÍNH NĂNG QUÊN MẬT KHẨU (GHI CHÚ DƯỚI FORM ĐĂNG NHẬP)
+    st.markdown("---")
+    st.caption("🔒 **Quên Mật khẩu?** Vui lòng nhắn tin trực tiếp cho Sếp Ren trên Group Zalo/Discord để được cấp lại mật khẩu mới.")
+
 def show_dashboard():
     user = st.session_state["user_info"]
     
@@ -132,7 +136,7 @@ def show_dashboard():
         
         # LOGIC ẨN RANK CHO LEADER VÀ BOSS
         if user['role'] == 'User':
-            st.write(f"**Vai trò:** Artist | **RANK:** {user['rank']}")
+            st.write(f"**Vai trò:** Artist | **RANK:** {user.get('rank', 'N/A')}")
         else:
             st.write(f"**Vai trò:** {user['role']}")
         

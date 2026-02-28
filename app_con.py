@@ -20,12 +20,16 @@ def hien_thi():
     username_id = user_info["username"]
     ten_nhan_su = user_info["name"]
     
-    # === GẮN BẢNG THÔNG BÁO VÀO CỘT TRÁI (SIDEBAR) - ĐÃ CHUYỂN VÀO ĐÂY ===
+    # 0. LẤY DATA NGAY TỪ ĐẦU
+    all_users = db.lay_danh_sach_nhan_su()
+    u_data = next((u for u in all_users if u['username'] == username_id), None)
+    user_tags = u_data.get("tags", ["All"]) if u_data else ["All"]
+
+    # === GẮN BẢNG THÔNG BÁO VÀO CỘT TRÁI ===
     with st.sidebar:
         st.markdown("---")
         st.subheader("📢 Bảng Tin Studio")
         ds_tb = db.lay_danh_sach_thong_bao()
-        
         if ds_tb:
             for tb in ds_tb:
                 with st.container(border=True):
@@ -35,53 +39,58 @@ def hien_thi():
         else:
             st.info("Hiện không có thông báo nào mới.")
 
-    # 1. KIỂM TRA THÔNG BÁO THĂNG RANK & BÓNG BAY (10 giây)
-    all_users = db.lay_danh_sach_nhan_su()
-    u_data = next((u for u in all_users if u['username'] == username_id), None)
-    
+    # 1. THÔNG BÁO THĂNG RANK
     if u_data and u_data.get("rank_message"):
         st.balloons()
-        st.toast(f"🔔 Bạn có thông báo mới từ Sếp Ren!")
-        st.success(f"### 🎉 CHÚC MỪNG BẠN ĐÃ LÊN HẠNG: {u_data.get('rank')} \n\n **Lời nhắn từ Sếp:** {u_data.get('rank_message')}")
-        placeholder = st.empty()
-        for i in range(10, 0, -1):
-            placeholder.write(f"✨ Thông báo này sẽ đóng sau {i} giây...")
-            time.sleep(1)
-        placeholder.empty()
+        st.success(f"### 🎉 CHÚC MỪNG BẠN ĐÃ LÊN HẠNG: {u_data.get('rank')} \n\n **Sếp nhắn:** {u_data.get('rank_message')}")
         db.db.collection("users").document(username_id).update({"rank_message": ""})
-        st.rerun()
 
-    st.header(f"👶 Chào {ten_nhan_su} - Không gian làm việc")
+    st.header(f"👶 Không gian của {ten_nhan_su}")
     st.markdown("---")
     
-    # 2. KHU VỰC THÔNG TIN TÀI CHÍNH & ĐỔI PASS
-    col_info, col_pass = st.columns(2)
+    # 2. KHU VỰC THÔNG TIN TÀI CHÍNH (4 CỘT) & BẢO MẬT
+    col_info, col_pass = st.columns([2, 1])
     with col_info:
-        tien_thuc_te, tien_du_kien = db.tinh_tien_nhan_vien(ten_nhan_su)
-        st.metric(label="💰 Thu nhập thực tế (Đã chốt)", value=f"{tien_thuc_te:,} đ")
-        st.metric(label="⏳ Thu nhập dự kiến (Đang làm)", value=f"{tien_du_kien:,} đ")
+        st.subheader("💵 Báo cáo Thu nhập")
+        t_thuc, t_du, t_cho, t_chinh, t_no = db.tinh_tien_nhan_vien(username_id)
         
+        c1, c2 = st.columns(2)
+        c1.metric(label="💰 Thực tế (Đã duyệt)", value=f"{t_thuc:,} đ")
+        c2.metric(label="⏳ Dự kiến (Tổng task)", value=f"{t_du:,} đ")
+        
+        c3, c4 = st.columns(2)
+        c3.metric(label="🔥 Chờ thanh toán (+Nợ)", value=f"{t_cho:,} đ", help="Tiền chờ Sếp chuyển khoản (Đã cộng tiền Sếp thưởng thêm)")
+        c4.metric(label="✅ Chính thức (Đã nhận)", value=f"{t_chinh:,} đ", help="Tiền Sếp đã chuyển khoản thành công")
+
     with col_pass:
-        with st.expander("🔐 Tài khoản & Bảo mật"):
-            st.write(f"**Hạng hiện tại:** {u_data.get('rank', 'N/A') if u_data else 'N/A'}")
-            st.caption("Chỉ Sếp mới có quyền thay đổi Rank.")
+        st.subheader("🔐 Cá nhân")
+        with st.expander("Thông tin & Bảo mật", expanded=True):
+            st.write(f"**Hạng:** {u_data.get('rank', 'N/A') if u_data else 'N/A'}")
+            st.write(f"**Tag chuyên môn:** {', '.join(user_tags)}")
+            
+            # Tính năng tự đổi tên
+            new_name = st.text_input("Đổi tên hiển thị (Nickname):", value=ten_nhan_su)
+            if st.button("Lưu Tên Mới", type="primary"):
+                if new_name and new_name != ten_nhan_su:
+                    db.cap_nhat_ten_hien_thi(username_id, ten_nhan_su, new_name)
+                    st.session_state["user_info"]["name"] = new_name
+                    st.success("Đổi tên thành công!"); st.rerun()
+
+            # Đổi mật khẩu
             new_pass = st.text_input("Đổi mật khẩu mới:", type="password")
-            if st.button("Xác nhận đổi mật khẩu"):
+            if st.button("Xác nhận đổi MK"):
                 if new_pass:
                     db.doi_mat_khau(username_id, new_pass)
                     st.success("Đã cập nhật mật khẩu mới!")
-                else:
-                    st.warning("Vui lòng nhập mật khẩu.")
 
     st.markdown("---")
     tasks = db.lay_danh_sach_task()
     
-# 3. VIỆC ĐANG LÀM & CẦN SỬA
+    # 3. VIỆC ĐANG LÀM & CẦN SỬA
     st.subheader("📝 Việc đang làm & Cần sửa")
     task_dang_lam = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") in ["In_Progress", "Revise"]]
     
-    if not task_dang_lam:
-        st.info("Chưa có task nào đang làm.")
+    if not task_dang_lam: st.info("Chưa có task nào đang làm.")
     for t in task_dang_lam:
         thong_bao_han, mau_sac = tinh_ngay_con_lai(t.get('deadline', ''))
         with st.expander(f"🔥 [{t.get('project')}] {t.get('name')}", expanded=True):
@@ -92,8 +101,6 @@ def hien_thi():
                 st.error(f"🚨 YÊU CẦU SỬA: {t.get('Leader_Feedback', '')}")
             
             link_nop = st.text_input("🔗 Dán link Google Drive nộp bài:", key=f"link_{t.get('id')}")
-            
-            # --- TUI CHIA 2 CỘT CHO NÚT NỘP VÀ TRẢ TASK ĐẸP MẮT ---
             col_nop, col_tra = st.columns(2)
             with col_nop:
                 if st.button("📤 Gửi bài cho Leader", key=f"nop_{t.get('id')}", type="primary", use_container_width=True):
@@ -101,46 +108,46 @@ def hien_thi():
                         db.nop_bai(t.get("id"), link_nop)
                         st.success("Đã nộp bài!"); st.rerun()
             with col_tra:
-                # ---> NÚT TRẢ TASK NẰM Ở ĐÂY MỚI CHUẨN <---
                 if st.button(f"⚠️ Bỏ nhận (Trả về Chợ)", key=f"tra_{t['id']}", type="secondary", use_container_width=True):
                     db.tra_lai_task(t['id'])
-                    st.warning(f"Đã trả task '{t['name']}' về Chợ thành công!")
-                    st.rerun()
+                    st.warning("Đã trả task về chợ!"); st.rerun()
 
-    # 4. BÀI ĐÃ NỘP (DẠNG NGĂN KÉO GỌN GÀNG)
+    # 4. BÀI ĐÃ NỘP
     st.subheader("⏳ Bài đã nộp (Đang chờ duyệt)")
     task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") in ["Pending_Leader", "Pending_Boss"]]
-    
-    if not task_cho:
-        st.caption("Hiện không có bài nào đang chờ duyệt.")
+    if not task_cho: st.caption("Hiện không có bài nào đang chờ duyệt.")
     for t in task_cho:
-        icon_status = "⏳" if t.get("status") == "Pending_Leader" else "🏛️"
         trang_thai_text = "Chờ Leader" if t.get("status") == "Pending_Leader" else "Chờ Sếp duyệt"
-        
-        with st.expander(f"{icon_status} **[{t.get('project')}] {t.get('name')}** — *{trang_thai_text}*"):
+        with st.expander(f"⏳ **[{t.get('project')}] {t.get('name')}** — *{trang_thai_text}*"):
             st.markdown(f"🔗 **Link hiện tại:** [Xem file nộp]({t.get('Submission_Link', '')})")
-            new_link = st.text_input("Cập nhật lại link Drive mới (nếu nhầm):", key=f"uplink_{t['id']}")
+            new_link = st.text_input("Cập nhật lại link Drive mới:", key=f"uplink_{t['id']}")
             if st.button("🔄 Cập nhật Link", key=f"btn_up_{t['id']}"):
                 if new_link:
                     db.sua_link_nop(t["id"], new_link)
-                    st.success("Đã cập nhật link mới!"); st.rerun()
-    
+                    st.success("Đã cập nhật!"); st.rerun()
 
     st.markdown("---")
     
-    # 5. CHỢ TASK (CÓ BỘ LỌC)
+    # 5. CHỢ TASK (SMART FILTER BẰNG TAG)
     st.subheader("🛒 Chợ Task Studio")
     task_tren_cho = [t for t in tasks if t.get("status") == "Open"]
     
+    # LỌC THEO TAG CỦA USER (Tính năng Sếp yêu cầu)
+    if "All" not in user_tags:
+        task_tren_cho = [t for t in task_tren_cho if t.get("tag") in user_tags or t.get("tag") == "All"]
+    
     col_loc1, col_loc2 = st.columns(2)
     du_an_loc = col_loc1.selectbox("📌 Lọc theo Dự án", ["Tất cả"] + db.lay_danh_sach_du_an())
-    tag_loc = col_loc2.selectbox("🏷️ Lọc theo Khâu (Tag)", ["Tất cả", "LO", "Sakkan", "Nigen", "Douga", "Shiage", "Concept", "Background", "Illustration"])
+    
+    # Dropdown tag lọc chỉ hiển thị những tag user có (hoặc All)
+    luachon_tag = ["Tất cả"] + user_tags if "All" not in user_tags else ["Tất cả", "All", "LO", "Sakkan", "Nigen", "Douga", "Shiage", "Concept", "Background", "Illustration"]
+    tag_loc = col_loc2.selectbox("🏷️ Lọc theo Khâu", luachon_tag)
     
     if du_an_loc != "Tất cả": task_tren_cho = [t for t in task_tren_cho if t.get("project") == du_an_loc]
     if tag_loc != "Tất cả": task_tren_cho = [t for t in task_tren_cho if t.get("tag") == tag_loc]
         
     if not task_tren_cho:
-        st.info("Chợ đang trống hoặc không có task phù hợp. Chờ Sếp tung việc nhé!")
+        st.info("Chợ đang trống hoặc Sếp chưa giao Task thuộc chuyên môn (Tag) của bạn.")
         
     for t in task_tren_cho:
         thong_bao_han, mau_sac = tinh_ngay_con_lai(t.get('deadline', ''))

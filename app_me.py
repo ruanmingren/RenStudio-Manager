@@ -88,34 +88,46 @@ def hien_thi():
     # TAB 2: KẾ TOÁN & TÀI CHÍNH CHI TIẾT
     # ==========================================
     with tab_taichinh:
-        st.subheader("🏦 Quản lý Ngân sách Studio")
+        st.subheader("🏦 Quản lý Ngân sách & Thanh toán")
         
-        # TÍNH TOÁN CÁC QUỸ
-        tong_ngan_sach = sum(t.get('reward', 0) for t in tasks) # Bao gồm tất cả task
+        tong_ngan_sach = sum(t.get('reward', 0) for t in tasks)
         tong_chi = sum(t.get('reward', 0) for t in tasks if t.get('status') == 'Done')
-        tong_treo = sum(t.get('reward', 0) for t in tasks if t.get('status') in ['In_Progress', 'Revise', 'Pending_Leader', 'Pending_Boss'])
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("💰 TỔNG QUỸ DỰ KIẾN", f"{tong_ngan_sach:,} đ", help="Tổng ngân sách cần chuẩn bị cho tất cả task đã giao")
-        col2.metric("💸 Đã chốt (Phải trả)", f"{tong_chi:,} đ")
-        col3.metric("⏳ Đang thực hiện", f"{tong_treo:,} đ", help="Tiền task đang chạy, sắp phải thanh toán")
+        col1, col2 = st.columns(2)
+        col1.metric("💰 TỔNG QUỸ DỰ KIẾN", f"{tong_ngan_sach:,} đ")
+        col2.metric("💸 Quỹ cần trả (Done)", f"{tong_chi:,} đ")
         
         st.markdown("---")
-        st.subheader("💵 Bảng lương chi tiết nhân sự")
+        # KHU VỰC SẾP NHẬP SỐ LIỆU THANH TOÁN
+        st.subheader("💳 Ghi nhận Thanh toán & Nợ Studio")
         users = db.lay_danh_sach_nhan_su()
+        
+        with st.expander("Bấm vào đây để Chốt tiền chuyển khoản cho nhân viên", expanded=False):
+            chon_nv_tc = st.selectbox("Chọn nhân viên:", [u['username'] for u in users])
+            if chon_nv_tc:
+                nv_data = next(u for u in users if u['username'] == chon_nv_tc)
+                col_tt1, col_tt2 = st.columns(2)
+                da_tra_moi = col_tt1.number_input(f"Tiền ĐÃ CHUYỂN KHOẢN (Lũy kế):", value=nv_data.get('paid_amount', 0), step=100000)
+                no_them_moi = col_tt2.number_input(f"Studio CÒN NỢ (hoặc Thưởng thêm):", value=nv_data.get('studio_debt', 0), step=50000)
+                if st.button("💾 Lưu Dữ Liệu Tài Chính", type="primary"):
+                    db.cap_nhat_tai_chinh_studio(chon_nv_tc, da_tra_moi, no_them_moi)
+                    st.success("Đã lưu sổ sách!"); st.rerun()
+
+        st.markdown("---")
+        st.subheader("💵 Bảng Tổng Kế Toán Toàn Studio")
         luong_data = []
         for u in users:
-            thuc, du = db.tinh_tien_nhan_vien(u['name'])
-            # SHOW TẤT CẢ NHÂN SỰ kể cả chưa có lương
+            t_thuc, t_du, t_cho, t_chinh, t_no = db.tinh_tien_nhan_vien(u['username'])
             luong_data.append({
-                "Tên nhân sự": u['name'], 
-                "Vai trò": u.get('role', 'User'),
-                "Đã chốt (VNĐ)": thuc, 
-                "Đang làm (VNĐ)": du
+                "Tên NV": u['name'], 
+                "Dự kiến": t_du,
+                "Thực tế": t_thuc, 
+                "Chờ Thanh Toán": t_cho,
+                "Đã Chuyển Khoản": t_chinh,
+                "Studio Nợ": t_no
             })
             
         if luong_data:
-            # Sắp xếp để Boss và Leader lên đầu cho dễ nhìn
             df_luong = pd.DataFrame(luong_data)
             st.dataframe(df_luong, use_container_width=True, hide_index=True)
 
@@ -152,7 +164,7 @@ def hien_thi():
             p_moi = st.selectbox("Thuộc dự án", db.lay_danh_sach_du_an())
             n_moi = st.text_input("Tên việc (VD: Cut 05 - Genga)")
             c_tag, c_tien = st.columns(2)
-            tag_moi = c_tag.selectbox("Khâu (Tag)", ["LO", "Sakkan", "Nigen", "Douga", "Shiage", "Concept", "Background", "Illustration"])
+            tag_moi = c_tag.selectbox("Khâu (Tag)", ["All", "LO", "Sakkan", "Nigen", "Douga", "Shiage", "Concept", "Background", "Illustration"])
             r_moi = c_tien.number_input("Thù lao (VNĐ)", min_value=0, step=50000)
             d_moi = st.text_input("Hạn nộp (Ghi đúng định dạng DD/MM, VD: 26/02)")
             
@@ -189,27 +201,29 @@ def hien_thi():
         
         st.markdown("---")
         
-        # 1. TÍNH NĂNG THÊM NHÂN SỰ MỚI
-        st.subheader("➕ Thêm Nhân Sự Mới (Cấp Tài Khoản)")
-        with st.expander("Bấm để mở biểu mẫu tạo tài khoản", expanded=False):
+        # 1. TÍNH NĂNG THÊM NHÂN SỰ MỚI (CÓ TAG)
+        st.subheader("➕ Thêm/Sửa Nhân Sự (Cấp Tài Khoản & Tag)")
+        with st.expander("Bấm để mở biểu mẫu quản lý", expanded=False):
             col_id, col_pass = st.columns(2)
-            new_user = col_id.text_input("Tên đăng nhập (ID viết liền, vd: hoang_artist)")
-            new_pass = col_pass.text_input("Mật khẩu tạm (Nhân viên có thể tự đổi sau)")
+            new_user = col_id.text_input("Tên đăng nhập (ID cố định, vd: hoang_artist)")
+            new_pass = col_pass.text_input("Mật khẩu tạm")
             
             col_name, col_role = st.columns(2)
-            new_name = col_name.text_input("Tên hiển thị (VD: Animator Hoàng)")
+            new_name = col_name.text_input("Tên hiển thị")
             new_role = col_role.selectbox("Vai trò", ["User", "Leader", "Boss"])
+            new_rank = st.selectbox("Hạng (Rank)", ["Thực tập", "C", "B", "A", "S"])
             
-            new_rank = st.selectbox("Đánh giá Hạng (Rank ban đầu)", ["Thực tập", "C", "B", "A", "S"])
+            # TÍNH NĂNG TAG MỚI
+            danh_sach_tag = ["All", "Background", "Concept", "Character", "Sakkan", "LO", "Nigen", "Douga", "Shiage", "Illustration"]
+            new_tags = st.multiselect("Gắn Tag Chuyên Môn (Có thể chọn nhiều)", danh_sach_tag, default=["All"])
             
-            if st.button("✅ Khởi tạo Tài Khoản", type="primary"):
+            if st.button("✅ Lưu Thông Tin", type="primary"):
                 if new_user and new_pass and new_name:
-                    db.them_hoac_sua_nhan_su(new_user, new_pass, new_name, new_role, new_rank)
-                    st.success(f"Đã cấp thẻ nhân viên thành công cho: {new_name}!")
+                    db.them_hoac_sua_nhan_su(new_user, new_pass, new_name, new_role, new_rank, new_tags)
+                    st.success(f"Đã cập nhật hồ sơ cho: {new_name}!")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Sếp điền thiếu Tên đăng nhập, Mật khẩu hoặc Tên hiển thị kìa!")
-
+                    st.warning("⚠️ Sếp điền thiếu thông tin kìa!")
         st.markdown("---")
         
         # 2. TÍNH NĂNG THĂNG HẠNG
