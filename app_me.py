@@ -191,11 +191,21 @@ def hien_thi():
     # ==========================================
     # TAB 5: QUẢN LÝ NHÂN SỰ (FULL CHỨC NĂNG)
     # ==========================================
+
     with tab_nhansu:
         st.subheader("📋 Danh sách Nhân sự")
         ns = db.lay_danh_sach_nhan_su()
         if ns:
-            st.dataframe(pd.DataFrame(ns)[['username', 'name', 'role', 'rank']], use_container_width=True, hide_index=True)
+            # --- CODE MỚI: Xử lý để hiện Tag cho đẹp ---
+            for u in ns:
+                # Kéo danh sách tag ra, nếu ai chưa có thì để mặc định là "All"
+                ds_tag = u.get('tags', ['All'])
+                # Nối các tag lại bằng dấu phẩy cho dễ đọc (VD: Background, LO)
+                u['Tag chuyên môn'] = ", ".join(ds_tag)
+                
+            # Thêm cột 'Tag chuyên môn' vào bảng hiển thị
+            df_nhansu = pd.DataFrame(ns)[['username', 'name', 'role', 'rank', 'Tag chuyên môn']]
+            st.dataframe(df_nhansu, use_container_width=True, hide_index=True)
         else:
             st.info("Chưa có nhân sự nào.")
         
@@ -269,7 +279,7 @@ def hien_thi():
                         st.rerun()
             else:
                 st.info("Chưa có nhân sự nào để gắn Tag.")
-
+        
 
     # ==========================================
     # TAB 6: CHỐT LƯƠNG TỪNG CÁ NHÂN (TÍNH NĂNG MỚI)
