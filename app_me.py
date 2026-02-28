@@ -248,6 +248,29 @@ def hien_thi():
                 st.success(f"Đã xóa tài khoản {id_xoa} khỏi Studio!")
                 st.rerun()
 
+
+        # --- TÍNH NĂNG MỚI: CẬP NHẬT TAG NHANH CHO NHÂN VIÊN CŨ ---
+        st.markdown("---")
+        st.subheader("🏷️ Cập nhật Tag cho nhân sự có sẵn")
+        with st.expander("Bấm để gắn lại Tag chuyên môn", expanded=False):
+            if ns:
+                chon_nv_tag = st.selectbox("Chọn ID nhân viên cần gắn Tag:", [u['username'] for u in ns if u['role'] != 'Boss'])
+                if chon_nv_tag:
+                    nv_hien_tai = next(u for u in ns if u['username'] == chon_nv_tag)
+                    tag_hien_tai = nv_hien_tai.get('tags', ["All"])
+                    
+                    danh_sach_tag = ["All", "Background", "Concept", "Character", "Sakkan", "LO", "Nigen", "Douga", "Shiage", "Illustration"]
+                    tag_cap_nhat = st.multiselect(f"Chỉnh sửa Tag cho {nv_hien_tai['name']}:", danh_sach_tag, default=tag_hien_tai)
+                    
+                    if st.button("💾 Lưu Tag Mới", type="primary"):
+                        # Code chọc thẳng vào Két sắt, chỉ sửa mỗi cái Tag, giữ nguyên mọi thứ khác
+                        db.db.collection("users").document(chon_nv_tag).update({"tags": tag_cap_nhat})
+                        st.success(f"Đã cập nhật Tag mới cho {nv_hien_tai['name']}!")
+                        st.rerun()
+            else:
+                st.info("Chưa có nhân sự nào để gắn Tag.")
+
+
     # ==========================================
     # TAB 6: CHỐT LƯƠNG TỪNG CÁ NHÂN (TÍNH NĂNG MỚI)
     # ==========================================
