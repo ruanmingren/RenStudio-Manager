@@ -2,3 +2,4 @@ streamlit
 firebase-admin
 pandas
 streamlit-cookies-controller
+requests

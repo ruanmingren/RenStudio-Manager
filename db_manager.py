@@ -3,6 +3,25 @@ from firebase_admin import credentials, firestore
 import streamlit as st
 import datetime
 import json
+import requests  # <-- Thư viện mới để gửi tin nhắn Discord
+
+# ==========================================
+# CẤU HÌNH BOT DISCORD (TRỢ LÝ BÁO CÁO)
+# ==========================================
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1480332244039241751/dGrWgL0ZWDZ-NDqYHOdxYtC0m7zWJhTrQ98B1s4tVwXoI2VXrwdtAxBe4eNHNuvWZ7Uu"
+
+def gui_thong_bao_discord(tin_nhan):
+    if not DISCORD_WEBHOOK_URL:
+        return
+    data = {
+        "content": tin_nhan,
+        "username": "Trợ Lý Ren Studio", 
+        "avatar_url": "https://cdn-icons-png.flaticon.com/512/4712/4712010.png" # Icon con Bot cho đẹp
+    }
+    try:
+        requests.post(DISCORD_WEBHOOK_URL, json=data)
+    except Exception as e:
+        print(f"Lỗi gửi tin nhắn Discord: {e}")
 
 # ==========================================
 # PHẦN 1: KẾT NỐI KÉT SẮT FIREBASE
@@ -29,7 +48,6 @@ def kiem_tra_dang_nhap(username, password):
             return u
     return None
 
-# BÙA CACHE: Tự động lưu bộ nhớ đệm (Giúp app nhẹ, chống sập RAM)
 @st.cache_data(ttl=60)
 def lay_danh_sach_nhan_su():
     users_ref = db.collection("users").stream()
@@ -41,7 +59,7 @@ def them_hoac_sua_nhan_su(username, password, name, role, rank, tags=None):
         "password": password, "name": name, "role": role, 
         "rank": rank, "tags": tags
     }, merge=True)
-    st.cache_data.clear() # Reset cache khi có thay đổi
+    st.cache_data.clear()
     return True
 
 def cap_nhat_ten_hien_thi(username, ten_cu, ten_moi):
@@ -108,20 +126,34 @@ def them_task_moi(project, name, tag, rank, reward, deadline):
     }
     db.collection("tasks").add(task_moi)
     st.cache_data.clear()
+    
+    # Báo Discord
+    gui_thong_bao_discord(f"🎬 **SẾP TUNG TASK MỚI:** `[{project}] {name}`\n🏷️ Khâu: **{tag}** | 💰 Thù lao: **{reward:,} đ**\n👉 Anh em lên Chợ nhận việc ngay nhé!")
     return True
 
 def nhan_task(task_id, user_name):
+    # Lấy thông tin task để báo cáo
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({
         "status": "In_Progress", "assignee": user_name
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"🚀 **{user_name}** vừa xí phần Task: `[{t_data.get('project')}] {t_data.get('name')}`")
     return True
 
 def nop_bai(task_id, link_drive):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({
         "status": "Pending_Leader", "Submission_Link": link_drive
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"📤 **{t_data.get('assignee')}** vừa nộp bài cho Task: `[{t_data.get('project')}] {t_data.get('name')}`\n🔗 Leader vào check file nhé: {link_drive}")
     return True
 
 def sua_link_nop(task_id, link_moi):
@@ -130,39 +162,64 @@ def sua_link_nop(task_id, link_moi):
     return True
 
 def leader_duyet_pass(task_id):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({"status": "Pending_Boss"})
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"✅ **Leader đã duyệt** Task: `[{t_data.get('project')}] {t_data.get('name')}`.\n👑 Chờ Sếp Ren vào chốt tiền!")
     return True
 
 def leader_yeu_cau_sua(task_id, ly_do):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({
         "status": "Revise", "Leader_Feedback": ly_do, 
         "Submission_Link": "", "retake_count": firestore.Increment(1) 
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"🚨 Task `[{t_data.get('project')}] {t_data.get('name')}` vừa bị Leader yêu cầu SỬA LẠI!\n💬 Lý do: {ly_do}")
     return True
 
 def tra_lai_task(task_id):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({
         "status": "Open", "assignee": ""
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"⚠️ **{t_data.get('assignee')}** vừa bỏ nhận Task `[{t_data.get('project')}] {t_data.get('name')}`. Task đã được ném lại lên Chợ!")
     return True
 
 def boss_duyet_task(task_id):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     ngay_hoan_thanh = datetime.datetime.now().strftime("%d/%m/%Y")
     db.collection("tasks").document(task_id).update({
         "status": "Done", "completed_at": ngay_hoan_thanh
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"💸 **SẾP ĐÃ DUYỆT FINAL** Task `[{t_data.get('project')}] {t_data.get('name')}` của **{t_data.get('assignee')}**! Ting ting!")
     return True
 
 def boss_tra_ve_task(task_id, ly_do):
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    
     db.collection("tasks").document(task_id).update({
         "status": "Revise", "Leader_Feedback": f"[SẾP YÊU CẦU SỬA]: {ly_do}", 
         "Submission_Link": "", "retake_count": firestore.Increment(1)
     })
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"🚨 **SẾP QUACK** 🦆: Task `[{t_data.get('project')}] {t_data.get('name')}` làm chưa đạt!\n💬 Sếp dặn: {ly_do}")
     return True
 
 def xoa_task(task_id):
@@ -170,7 +227,6 @@ def xoa_task(task_id):
     st.cache_data.clear()
     return True
 
-# --- TÍNH NĂNG MỚI DÀNH CHO SẾP (Sửa Deadline/Giá tiền) ---
 def sua_thong_tin_task(task_id, deadline_moi, gia_tien_moi):
     db.collection("tasks").document(task_id).update({
         "deadline": deadline_moi,
@@ -220,6 +276,8 @@ def tao_thong_bao(tieu_de, noi_dung):
     thong_bao = {"id": tb_id, "title": tieu_de, "content": noi_dung, "time": datetime.datetime.now().strftime("%d/%m/%Y %H:%M")}
     db.collection("announcements").document(tb_id).set(thong_bao)
     st.cache_data.clear()
+    
+    gui_thong_bao_discord(f"📢 **LOA LOA LOA! THÔNG BÁO TỪ SẾP:**\n**{tieu_de}**\n{noi_dung}")
     return True
 
 @st.cache_data(ttl=60)
