@@ -132,7 +132,7 @@ def hien_thi():
             st.dataframe(df_luong, use_container_width=True, hide_index=True)
 
     # ==========================================
-    # CÁC TAB CÒN LẠI (GIỮ NGUYÊN)
+    # TAB 3: KHO DUYỆT
     # ==========================================
     with tab_duyet:
         st.subheader("✅ Duyệt bài Final (Chốt tiền)")
@@ -151,6 +151,9 @@ def hien_thi():
                     if ly_do: db.boss_tra_ve_task(t['id'], ly_do); st.rerun()
                     else: st.warning("Hãy ghi lý do để Artist biết đường sửa bài.")
 
+    # ==========================================
+    # TAB 4: SẢN XUẤT
+    # ==========================================
     with tab_sanxuat:
         col_da, col_t = st.columns([1, 2])
         with col_da:
@@ -171,6 +174,26 @@ def hien_thi():
             if st.button("🚀 Tung lên Chợ", type="primary") and n_moi:
                 db.them_task_moi(p_moi, n_moi, tag_moi, "B", r_moi, d_moi)
                 st.success("Task đã bay lên chợ!"); st.rerun()
+                
+        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK ---
+        st.markdown("---")
+        st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
+        if tasks:
+            danh_sach_sua = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')}": t for t in tasks}
+            task_can_sua = st.selectbox("📌 Chọn task cần chỉnh sửa:", list(danh_sach_sua.keys()))
+            if task_can_sua:
+                t_sua = danh_sach_sua[task_can_sua]
+                c_sua1, c_sua2 = st.columns(2)
+                dl_moi = c_sua1.text_input("Hạn nộp mới (DD/MM):", value=t_sua.get('deadline', ''))
+                gia_moi = c_sua2.number_input("Thù lao mới (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
+                
+                if st.button("💾 Cập nhật thay đổi", type="primary"):
+                    db.sua_thong_tin_task(t_sua['id'], dl_moi, gia_moi)
+                    st.success("Đã cập nhật Deadline và Giá tiền mới vào Két sắt!")
+                    st.rerun()
+        else:
+            st.info("Chưa có task nào để sửa.")
+
         st.markdown("---")
         st.subheader("🗑️ Xóa Task (Dọn dẹp rác)")
         st.warning("⚠️ LƯU Ý KẾ TOÁN: Xóa task đang có trạng thái 'Done' sẽ làm TỤT LƯƠNG của Artist trong bảng tính!")
@@ -257,7 +280,6 @@ def hien_thi():
                 db.xoa_nhan_su(id_xoa)
                 st.success(f"Đã xóa tài khoản {id_xoa} khỏi Studio!")
                 st.rerun()
-
 
         # --- TÍNH NĂNG MỚI: CẬP NHẬT TAG NHANH CHO NHÂN VIÊN CŨ ---
         st.markdown("---")

@@ -131,6 +131,44 @@ def hien_thi():
     # 5. CHỢ TASK (SMART FILTER BẰNG TAG)
     st.subheader("🛒 Chợ Task Studio")
     task_tren_cho = [t for t in tasks if t.get("status") == "Open"]
+
+# --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK ---
+    st.markdown("---")
+    st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
+    if tasks:
+        danh_sach_sua = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')}": t for t in tasks}
+        task_can_sua = st.selectbox("📌 Chọn task cần chỉnh sửa:", list(danh_sach_sua.keys()))
+        if task_can_sua:
+            t_sua = danh_sach_sua[task_can_sua]
+            c_sua1, c_sua2 = st.columns(2)
+            dl_moi = c_sua1.text_input("Hạn nộp mới (DD/MM):", value=t_sua.get('deadline', ''))
+            gia_moi = c_sua2.number_input("Thù lao mới (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
+            
+            if st.button("💾 Cập nhật thay đổi", type="primary"):
+                db.sua_thong_tin_task(t_sua['id'], dl_moi, gia_moi)
+                st.success("Đã cập nhật Deadline và Giá tiền mới vào Két sắt!")
+                st.rerun()
+    else:
+        st.info("Chưa có task nào để sửa.")
+        
+    # ----------------------------------------
+
+    st.markdown("---")
+    st.subheader("🗑️ Xóa Task (Dọn dẹp rác)")
+    st.warning("⚠️ LƯU Ý KẾ TOÁN: Xóa task đang có trạng thái 'Done' sẽ làm TỤT LƯƠNG của Artist trong bảng tính!")
+    
+    # Lấy danh sách task để Sếp chọn
+    if tasks:
+        danh_sach_xoa = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')} (Artist: {t.get('assignee', 'Trống')})": t['id'] for t in tasks}
+        task_can_xoa = st.selectbox("📌 Chọn task muốn xóa vĩnh viễn khỏi hệ thống:", list(danh_sach_xoa.keys()))
+        
+        if st.button("❌ Bấm để Xóa Vĩnh Viễn", type="secondary"):
+            task_id_xoa = danh_sach_xoa[task_can_xoa]
+            db.xoa_task(task_id_xoa)
+            st.success("Đã ném task vào lò đốt rác thành công!")
+            st.rerun()
+    else:
+        st.info("Hiện không có task nào trong hệ thống để xóa.")    
     
     # LỌC THEO TAG CỦA USER (Tính năng Sếp yêu cầu)
     if "All" not in user_tags:
