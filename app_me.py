@@ -90,17 +90,40 @@ def hien_thi():
     with tab_taichinh:
         st.subheader("🏦 Quản lý Ngân sách & Thanh toán")
         
+        # Lấy dữ liệu task và user để tính toán tổng quát
         tong_ngan_sach = sum(t.get('reward', 0) for t in tasks)
         tong_chi = sum(t.get('reward', 0) for t in tasks if t.get('status') == 'Done')
         
-        col1, col2 = st.columns(2)
+        users = db.lay_danh_sach_nhan_su()
+        tong_cho_thanh_toan = 0
+        tong_no_studio = 0
+        
+        # Quét 1 vòng toàn bộ nhân sự để lấy con số TỔNG và chẩn bị dữ liệu cho Bảng chi tiết
+        luong_data = []
+        for u in users:
+            t_thuc, t_du, t_cho, t_chinh, t_no = db.tinh_tien_nhan_vien(u['username'])
+            tong_cho_thanh_toan += t_cho
+            tong_no_studio += t_no
+            
+            luong_data.append({
+                "Tên NV": u['name'], 
+                "Dự kiến": t_du,
+                "Thực tế": t_thuc, 
+                "Chờ Thanh Toán": t_cho,
+                "Đã Chuyển Khoản": t_chinh,
+                "Studio Nợ": t_no
+            })
+            
+        # Chia 4 cột để hiển thị 4 chỉ số tài chính quyền lực nhất của Sếp
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric("💰 TỔNG QUỸ DỰ KIẾN", f"{tong_ngan_sach:,} đ")
         col2.metric("💸 Quỹ cần trả (Done)", f"{tong_chi:,} đ")
+        col3.metric("🔥 CHỜ THANH TOÁN", f"{tong_cho_thanh_toan:,} đ", help="Tổng số tiền anh em đang đợi Sếp ting ting")
+        col4.metric("🚨 TỔNG NỢ STUDIO", f"{tong_no_studio:,} đ", help="Tổng nợ (hoặc thưởng) Sếp đã ghi nhận thêm")
         
         st.markdown("---")
         # KHU VỰC SẾP NHẬP SỐ LIỆU THANH TOÁN
         st.subheader("💳 Ghi nhận Thanh toán & Nợ Studio")
-        users = db.lay_danh_sach_nhan_su()
         
         with st.expander("Bấm vào đây để Chốt tiền chuyển khoản cho nhân viên", expanded=False):
             chon_nv_tc = st.selectbox("Chọn nhân viên:", [u['username'] for u in users])
@@ -115,22 +138,10 @@ def hien_thi():
 
         st.markdown("---")
         st.subheader("💵 Bảng Tổng Kế Toán Toàn Studio")
-        luong_data = []
-        for u in users:
-            t_thuc, t_du, t_cho, t_chinh, t_no = db.tinh_tien_nhan_vien(u['username'])
-            luong_data.append({
-                "Tên NV": u['name'], 
-                "Dự kiến": t_du,
-                "Thực tế": t_thuc, 
-                "Chờ Thanh Toán": t_cho,
-                "Đã Chuyển Khoản": t_chinh,
-                "Studio Nợ": t_no
-            })
-            
         if luong_data:
+            # Vì mình đã tính toán và gom sẵn luong_data ở vòng lặp trên rồi, nên chỉ việc show ra thôi, code gọn hơn rất nhiều!
             df_luong = pd.DataFrame(luong_data)
             st.dataframe(df_luong, use_container_width=True, hide_index=True)
-
     # ==========================================
     # TAB 3: KHO DUYỆT
     # ==========================================
