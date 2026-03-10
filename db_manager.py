@@ -223,8 +223,19 @@ def boss_tra_ve_task(task_id, ly_do):
     return True
 
 def xoa_task(task_id):
+    # 1. Chụp lại thông tin task trước khi nó "bay màu" để làm bằng chứng
+    t_doc = db.collection("tasks").document(task_id).get()
+    t_data = t_doc.to_dict() if t_doc.exists else {}
+    ten_task = f"[{t_data.get('project', 'N/A')}] {t_data.get('name', 'N/A')}"
+    nguoi_nhan = t_data.get('assignee', 'Chưa có ai nhận')
+
+    # 2. Tiến hành xóa sổ khỏi Firebase
     db.collection("tasks").document(task_id).delete()
     st.cache_data.clear()
+    
+    # 3. Bắn tin nhắn báo động đỏ lên Discord
+    gui_thong_bao_discord(f"🚨 **CẢNH BÁO XÓA DỮ LIỆU:** Task `{ten_task}` (Artist đang giữ: **{nguoi_nhan}**) vừa bị **XÓA VĨNH VIỄN** khỏi hệ thống Két sắt!")
+    
     return True
 
 def sua_thong_tin_task(task_id, deadline_moi, gia_tien_moi):
