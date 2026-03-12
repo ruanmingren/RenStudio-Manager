@@ -31,8 +31,9 @@ def hien_thi():
         if tasks:
             # Phân loại task theo nhóm
             task_open = [t for t in tasks if t.get("status") == "Open"]
-            task_dang_lam = [t for t in tasks if t.get("status") in ['In_Progress', 'Revise', 'Pending_Leader', 'Pending_Boss']]
             task_done = [t for t in tasks if t.get("status") == 'Done']
+            # BỘ LỌC BẤT TỬ: Mọi task không Open, không Done đều bị tóm vào mục Đang Làm
+            task_dang_lam = [t for t in tasks if t.get("status") not in ['Open', 'Done']]
             
             task_tre_han = []
             task_can_han = []

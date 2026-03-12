@@ -114,12 +114,17 @@ def hien_thi():
 
     # 4. BÀI ĐÃ NỘP (ĐANG CHỜ DUYỆT)
     st.subheader("⏳ Bài đã nộp (Đang chờ duyệt)")
-    # Sửa lỗi: Lọc đúng các task đang chờ Leader HOẶC Boss duyệt
-    task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") in ["Pending_Leader", "Pending_Boss"]]
+    # BỘ LỌC BẤT TỬ: Lấy tất cả task KHÁC Open, Done, In_Progress, Revise
+    task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") not in ["Open", "Done", "In_Progress", "Revise"]]
+    
     if not task_cho: st.caption("Hiện không có bài nào đang chờ duyệt.")
     for t in task_cho:
-        trang_thai_text = "Chờ Leader" if t.get("status") == "Pending_Leader" else "Chờ Sếp duyệt"
-        with st.expander(f"⏳ **[{t.get('project')}] {t.get('name')}** — *{trang_thai_text}*"):
+        tt_hien_tai = t.get("status")
+        if tt_hien_tai == "Pending_Leader": tt_text = "Chờ Leader"
+        elif tt_hien_tai == "Pending_Boss": tt_text = "Chờ Sếp duyệt"
+        else: tt_text = f"Đang chờ ({tt_hien_tai})" # Hiển thị luôn lỗi sai chữ của Leader để Sếp dễ bắt giò
+        
+        with st.expander(f"⏳ **[{t.get('project')}] {t.get('name')}** — *{tt_text}*"):
             st.markdown(f"🔗 **Link hiện tại:** [Xem file nộp]({t.get('Submission_Link', '')})")
             new_link = st.text_input("Cập nhật lại link Drive mới:", key=f"uplink_{t['id']}")
             if st.button("🔄 Cập nhật Link", key=f"btn_up_{t['id']}"):

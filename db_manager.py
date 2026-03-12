@@ -267,7 +267,7 @@ def tinh_tien_nhan_vien(username_id):
             if t.get("status") == "Done": 
                 t_thuc += t.get("reward", 0)
                 t_du += t.get("reward", 0)
-            elif t.get("status") in ["In_Progress", "Revise", "Pending_Leader", "Pending_Boss"]: 
+            elif t.get("status") != "Open":  # <--- BỘ LỌC BẤT TỬ: Cứ khác 'Open' là giữ tiền dự kiến!
                 t_du += t.get("reward", 0)
                 
     cho_thanh_toan = (t_thuc - da_thanh_toan) + tien_no
