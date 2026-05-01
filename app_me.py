@@ -205,12 +205,35 @@ def hien_thi():
         else:
             st.info("Chưa có task nào để sửa.")
 
+        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK ---
+        st.markdown("---")
+        st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
+        
+        # BỘ LỌC KẾ TOÁN: Loại bỏ các task đã Paid (Niêm phong)
+        tasks_hop_le_sua_xoa = [t for t in tasks if t.get('status') != 'Paid']
+
+        if tasks_hop_le_sua_xoa:
+            danh_sach_sua = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')}": t for t in tasks_hop_le_sua_xoa}
+            task_can_sua = st.selectbox("📌 Chọn task cần chỉnh sửa:", list(danh_sach_sua.keys()))
+            if task_can_sua:
+                t_sua = danh_sach_sua[task_can_sua]
+                c_sua1, c_sua2 = st.columns(2)
+                dl_moi = c_sua1.text_input("Hạn nộp mới (DD/MM):", value=t_sua.get('deadline', ''))
+                gia_moi = c_sua2.number_input("Thù lao mới (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
+                
+                if st.button("💾 Cập nhật thay đổi", type="primary"):
+                    db.sua_thong_tin_task(t_sua['id'], dl_moi, gia_moi)
+                    st.success("Đã cập nhật Deadline và Giá tiền mới vào Két sắt!")
+                    st.rerun()
+        else:
+            st.info("Chưa có task nào để sửa (hoặc tất cả đã được thanh toán).")
+
         st.markdown("---")
         st.subheader("🗑️ Xóa Task (Dọn dẹp rác)")
         st.warning("⚠️ LƯU Ý KẾ TOÁN: Xóa task đang có trạng thái 'Done' sẽ làm TỤT LƯƠNG của Artist trong bảng tính!")
         
-        if tasks:
-            danh_sach_xoa = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')} (Artist: {t.get('assignee', 'Trống')})": t['id'] for t in tasks}
+        if tasks_hop_le_sua_xoa:
+            danh_sach_xoa = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')} (Artist: {t.get('assignee', 'Trống')})": t['id'] for t in tasks_hop_le_sua_xoa}
             task_can_xoa = st.selectbox("📌 Chọn task muốn xóa vĩnh viễn khỏi hệ thống:", list(danh_sach_xoa.keys()))
             
             if st.button("❌ Bấm để Xóa Vĩnh Viễn", type="secondary"):
@@ -294,6 +317,31 @@ def hien_thi():
                         db.db.collection("users").document(chon_nv_tag).update({"tags": tag_cap_nhat})
                         st.success(f"Đã cập nhật Tag mới cho {nv_hien_tai['name']}!")
                         st.rerun()
+
+    # --- TÍNH NĂNG MỚI: ĐỔI TÊN ĐỒNG BỘ TASK ---
+        st.markdown("---")
+        st.subheader("✏️ Đổi Tên Hiển Thị (Xử lý trùng lặp)")
+        with st.expander("Bấm để đổi tên hiển thị cho nhân viên", expanded=False):
+            if ns:
+                chon_nv_doi_ten = st.selectbox("Chọn ID tài khoản cần đổi tên:", [u['username'] for u in ns if u['role'] != 'Boss'])
+                if chon_nv_doi_ten:
+                    nv_doi = next(u for u in ns if u['username'] == chon_nv_doi_ten)
+                    ten_cu = nv_doi.get('name', '')
+                    
+                    st.write(f"Tên hiển thị hiện tại: **{ten_cu}**")
+                    ten_moi = st.text_input("Nhập tên hiển thị mới (Nickname):", key=f"rename_{chon_nv_doi_ten}")
+                    
+                    if st.button("💾 Xác nhận Đổi Tên", type="primary"):
+                        if ten_moi and ten_moi != ten_cu:
+                            # Hàm này sẽ đổi tên user VÀ tự động quét qua Két sắt đổi luôn tên trong các Task cũ
+                            db.cap_nhat_ten_hien_thi(chon_nv_doi_ten, ten_cu, ten_moi)
+                            st.success(f"Đã đổi thành công '{ten_cu}' thành '{ten_moi}' và đồng bộ toàn bộ Task!")
+                            time.sleep(1.5)
+                            st.rerun()
+                        else:
+                            st.warning("Tên mới chưa được nhập hoặc trùng tên cũ.")
+            else:
+                st.info("Chưa có nhân sự nào để đổi tên.")
 
     # ==========================================
     # TAB 6: CHỐT LƯƠNG TỪNG CÁ NHÂN (V2.1 - SIÊU TỐI ƯU)
