@@ -122,7 +122,8 @@ def hien_thi():
             st.dataframe(df_luong, use_container_width=True, hide_index=True)
         else:
             st.info("Hiện không có khoản lương nào cần thanh toán.")
-        # --- ĐOẠN NÀY LÀ TUI ĐỀN CHO SẾP (Gắn ở cuối Tab 2) ---
+
+        # --- TÍNH NĂNG GHI NỢ THỦ CÔNG ---
         st.markdown("---")
         st.subheader("💳 Ghi nhận Nợ/Thưởng thủ công")
         
@@ -141,7 +142,6 @@ def hien_thi():
                     st.cache_data.clear()
                     st.success("Đã ghi sổ thành công!"); time.sleep(1)
                     st.rerun()
-
 
     # ==========================================
     # TAB 3: KHO DUYỆT
@@ -187,25 +187,7 @@ def hien_thi():
                 db.them_task_moi(p_moi, n_moi, tag_moi, "B", r_moi, d_moi)
                 st.success("Task đã bay lên chợ!"); st.rerun()
                 
-        st.markdown("---")
-        st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
-        if tasks:
-            danh_sach_sua = {f"[{t.get('status')}] {t.get('project')} - {t.get('name')}": t for t in tasks}
-            task_can_sua = st.selectbox("📌 Chọn task cần chỉnh sửa:", list(danh_sach_sua.keys()))
-            if task_can_sua:
-                t_sua = danh_sach_sua[task_can_sua]
-                c_sua1, c_sua2 = st.columns(2)
-                dl_moi = c_sua1.text_input("Hạn nộp mới (DD/MM):", value=t_sua.get('deadline', ''))
-                gia_moi = c_sua2.number_input("Thù lao mới (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
-                
-                if st.button("💾 Cập nhật thay đổi", type="primary"):
-                    db.sua_thong_tin_task(t_sua['id'], dl_moi, gia_moi)
-                    st.success("Đã cập nhật Deadline và Giá tiền mới vào Két sắt!")
-                    st.rerun()
-        else:
-            st.info("Chưa có task nào để sửa.")
-
-        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK ---
+        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK (ĐÃ BỌC LỌC KẾ TOÁN) ---
         st.markdown("---")
         st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
         
@@ -318,7 +300,7 @@ def hien_thi():
                         st.success(f"Đã cập nhật Tag mới cho {nv_hien_tai['name']}!")
                         st.rerun()
 
-    # --- TÍNH NĂNG MỚI: ĐỔI TÊN ĐỒNG BỘ TASK ---
+        # --- TÍNH NĂNG MỚI: ĐỔI TÊN ĐỒNG BỘ TASK ---
         st.markdown("---")
         st.subheader("✏️ Đổi Tên Hiển Thị (Xử lý trùng lặp)")
         with st.expander("Bấm để đổi tên hiển thị cho nhân viên", expanded=False):
