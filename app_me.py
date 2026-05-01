@@ -97,9 +97,9 @@ def hien_thi():
         tong_no_studio = sum(u.get('studio_debt', 0) for u in users)
         
         col1, col2, col3 = st.columns(3)
-        col1.metric("💰 TỔNG QUỸ DỰ KIẾN", f"{tong_ngan_sach:,} đ", help="Tổng tiền toàn bộ các task (Luôn tăng)")
-        col2.metric("💸 QUỸ CẦN TRẢ (ĐỢT NÀY)", f"{tong_chi:,} đ", help="Tiền các task vừa Done, sẽ tự động trừ đi khi Sếp bấm Trả Lương")
-        col3.metric("🚨 TỔNG NỢ STUDIO", f"{tong_no_studio:,} đ", help="Tổng lương còn thiếu nhân viên từ các đợt trước")
+        col1.metric("💰 TỔNG LƯƠNG", f"{tong_ngan_sach:,} đ", help="Tổng tiền toàn bộ các task (Luôn tăng)")
+        col2.metric("💸 LƯƠNG CẦN TRẢ ĐỢT NÀY", f"{tong_chi:,} đ", help="Tiền các task vừa Done, sẽ tự động trừ đi khi Sếp bấm Trả Lương")
+        col3.metric("🚨 TỔNG NỢ", f"{tong_no_studio:,} đ", help="Tổng lương còn thiếu nhân viên từ các đợt trước")
 
         st.markdown("---")
         st.subheader("💵 Bảng Tổng Kế Toán Toàn Studio")
@@ -122,6 +122,26 @@ def hien_thi():
             st.dataframe(df_luong, use_container_width=True, hide_index=True)
         else:
             st.info("Hiện không có khoản lương nào cần thanh toán.")
+        # --- ĐOẠN NÀY LÀ TUI ĐỀN CHO SẾP (Gắn ở cuối Tab 2) ---
+        st.markdown("---")
+        st.subheader("💳 Ghi nhận Nợ/Thưởng thủ công")
+        
+        with st.expander("Bấm vào đây để chỉnh sửa trực tiếp khoản Nợ/Thưởng của nhân viên", expanded=False):
+            chon_nv_tc = st.selectbox("Chọn nhân viên cần điều chỉnh:", [u['username'] for u in users])
+            if chon_nv_tc:
+                nv_data = next(u for u in users if u['username'] == chon_nv_tc)
+                no_hien_tai = nv_data.get('studio_debt', 0)
+                
+                st.write(f"Khoản nợ/thưởng đợt trước của **{nv_data['name']}** đang là: **{no_hien_tai:,} đ**")
+                
+                no_them_moi = st.number_input(f"Cập nhật lại thành:", value=int(no_hien_tai), step=50000)
+                
+                if st.button("💾 Lưu Dữ Liệu Nợ/Thưởng", type="primary"):
+                    db.db.collection("users").document(chon_nv_tc).update({"studio_debt": int(no_them_moi)})
+                    st.cache_data.clear()
+                    st.success("Đã ghi sổ thành công!"); time.sleep(1)
+                    st.rerun()
+
 
     # ==========================================
     # TAB 3: KHO DUYỆT
