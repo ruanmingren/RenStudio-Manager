@@ -115,7 +115,8 @@ def hien_thi():
     # 4. BÀI ĐÃ NỘP (ĐANG CHỜ DUYỆT)
     st.subheader("⏳ Bài đã nộp (Đang chờ duyệt)")
     # BỘ LỌC BẤT TỬ: Lấy tất cả task KHÁC Open, Done, In_Progress, Revise
-    task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") not in ["Open", "Done", "In_Progress", "Revise"]]
+    # THÊM BẢO VỆ MỚI: Loại bỏ cả các task đã "Paid" (Sếp đã trả tiền)
+    task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") not in ["Open", "Done", "Paid", "In_Progress", "Revise"]]
     
     if not task_cho: st.caption("Hiện không có bài nào đang chờ duyệt.")
     for t in task_cho:

@@ -255,7 +255,7 @@ def tinh_tien_nhan_vien(username_id):
     u = user_doc.to_dict()
     
     ten_nhan_su = u.get("name", "")
-    da_thanh_toan = u.get("paid_amount", 0)
+    da_thanh_toan = u.get("paid_amount", 0) 
     tien_no = u.get("studio_debt", 0)
 
     t_thuc = 0
@@ -267,10 +267,11 @@ def tinh_tien_nhan_vien(username_id):
             if t.get("status") == "Done": 
                 t_thuc += t.get("reward", 0)
                 t_du += t.get("reward", 0)
-            elif t.get("status") != "Open":  # <--- BỘ LỌC BẤT TỬ: Cứ khác 'Open' là giữ tiền dự kiến!
+            elif t.get("status") not in ["Open", "Paid"]:  # <--- CHỈ TÍNH TIỀN CHO CÁC TASK CHƯA NHẬN LƯƠNG
                 t_du += t.get("reward", 0)
                 
-    cho_thanh_toan = (t_thuc - da_thanh_toan) + tien_no
+    # Công thức chốt số tiền phải chuyển khoản
+    cho_thanh_toan = t_thuc + tien_no
     if cho_thanh_toan < 0: cho_thanh_toan = 0
 
     return t_thuc, t_du, cho_thanh_toan, da_thanh_toan, tien_no
