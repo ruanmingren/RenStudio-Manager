@@ -62,7 +62,7 @@ def hien_thi():
             
             with st.expander(f"🛒 Chưa ai nhận ({len(task_open)} task)"):
                 for t in task_open:
-                    st.write(f"- **[{t.get('project')}] {t.get('name')}** | Hạn: {t.get('deadline', 'Chưa có')}")
+                    st.write(f"- **[{t.get('project')}] {t.get('name')}** | Hạn chót tuyệt đối: {t.get('cutoff_date', 'N/A')} | Cho phép làm: {t.get('duration', 0)} ngày")
                     
             with st.expander(f"🔥 Đang làm ({len(task_dang_lam)} task)"):
                 for t in task_dang_lam:
@@ -71,7 +71,7 @@ def hien_thi():
                     elif tt == 'Revise': tt_vn = "Đang sửa"
                     elif tt == 'Pending_Leader': tt_vn = "Chờ Leader"
                     else: tt_vn = "Chờ Sếp duyệt"
-                    st.write(f"- **[{t.get('project')}] {t.get('name')}** | Artist: {t.get('assignee')} | Trạng thái: **{tt_vn}**")
+                    st.write(f"- **[{t.get('project')}] {t.get('name')}** | Artist: {t.get('assignee')} | Trạng thái: **{tt_vn}** | Hạn cá nhân: **{t.get('deadline', '')}**")
                     
             with st.expander(f"🌟 Đã hoàn thành ({len(task_done)} task)"):
                 for t in task_done:
@@ -85,15 +85,9 @@ def hien_thi():
     with tab_taichinh:
         st.subheader("🏦 Quản lý Ngân sách & Thanh toán")
         
-        # 1. Tổng quỹ dự kiến: Bao gồm TẤT CẢ các task (Kể cả đã trả tiền), con số này chỉ TĂNG
         tong_ngan_sach = sum(t.get('reward', 0) for t in tasks)
-        
-        # 2. Quỹ cần trả (Đợt này): Chỉ tính các task trạng thái "Done" chờ Sếp phát lương
         tong_chi = sum(t.get('reward', 0) for t in tasks if t.get('status') == 'Done')
-        
         users = db.lay_danh_sach_nhan_su()
-        
-        # 3. Tổng Nợ Studio: Tổng các khoản nợ từ ĐỢT TRƯỚC của tất cả nhân viên
         tong_no_studio = sum(u.get('studio_debt', 0) for u in users)
         
         col1, col2, col3 = st.columns(3)
@@ -123,7 +117,6 @@ def hien_thi():
         else:
             st.info("Hiện không có khoản lương nào cần thanh toán.")
 
-        # --- TÍNH NĂNG GHI NỢ THỦ CÔNG ---
         st.markdown("---")
         st.subheader("💳 Ghi nhận Nợ/Thưởng thủ công")
         
@@ -181,17 +174,20 @@ def hien_thi():
             c_tag, c_tien = st.columns(2)
             tag_moi = c_tag.selectbox("Khâu (Tag)", ["All", "LO", "Sakkan", "Nigen", "Douga", "Shiage", "Concept", "Background", "Illustration"])
             r_moi = c_tien.number_input("Thù lao (VNĐ)", min_value=0, step=50000)
-            d_moi = st.text_input("Hạn nộp (Ghi đúng định dạng DD/MM, VD: 26/02)")
+            
+            # --- CẬP NHẬT: Chia làm 2 ô Thời gian và Hạn chót tuyệt đối ---
+            c_time1, c_time2 = st.columns(2)
+            duration_moi = c_time1.number_input("Số ngày cho phép làm:", min_value=1, value=3, step=1, help="Kể từ lúc Artist bấm nhận việc")
+            cutoff_moi = c_time2.text_input("Hạn chót tuyệt đối (DD/MM):", help="Vượt quá ngày này sẽ bị ép Deadline lại đúng ngày này")
             
             if st.button("🚀 Tung lên Chợ", type="primary") and n_moi:
-                db.them_task_moi(p_moi, n_moi, tag_moi, "B", r_moi, d_moi)
+                db.them_task_moi(p_moi, n_moi, tag_moi, "B", r_moi, duration_moi, cutoff_moi)
                 st.success("Task đã bay lên chợ!"); st.rerun()
                 
-        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK (ĐÃ BỌC LỌC KẾ TOÁN) ---
+        # --- TÍNH NĂNG MỚI: SỬA THÔNG TIN TASK ĐA NĂNG ---
         st.markdown("---")
         st.subheader("✏️ Sửa Deadline & Giá Tiền Task")
         
-        # BỘ LỌC KẾ TOÁN: Loại bỏ các task đã Paid (Niêm phong)
         tasks_hop_le_sua_xoa = [t for t in tasks if t.get('status') != 'Paid']
 
         if tasks_hop_le_sua_xoa:
@@ -199,13 +195,19 @@ def hien_thi():
             task_can_sua = st.selectbox("📌 Chọn task cần chỉnh sửa:", list(danh_sach_sua.keys()))
             if task_can_sua:
                 t_sua = danh_sach_sua[task_can_sua]
-                c_sua1, c_sua2 = st.columns(2)
-                dl_moi = c_sua1.text_input("Hạn nộp mới (DD/MM):", value=t_sua.get('deadline', ''))
-                gia_moi = c_sua2.number_input("Thù lao mới (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
+                
+                # Hiển thị 3 ô để Sếp tùy ý thao tác mọi thông số
+                c_sua1, c_sua2, c_sua3 = st.columns(3)
+                duration_upd = c_sua1.number_input("Số ngày làm:", value=int(t_sua.get('duration', 0)), step=1)
+                cutoff_upd = c_sua2.text_input("Hạn chót (DD/MM):", value=t_sua.get('cutoff_date', ''))
+                gia_upd = c_sua3.number_input("Thù lao (VNĐ):", value=int(t_sua.get('reward', 0)), step=50000)
+                
+                st.write("*(Chỉ dành cho Boss)* Sửa ép Deadline của Artist (Nếu task đang có người làm):")
+                deadline_upd = st.text_input("Deadline thực tế hiện tại (DD/MM):", value=t_sua.get('deadline', ''))
                 
                 if st.button("💾 Cập nhật thay đổi", type="primary"):
-                    db.sua_thong_tin_task(t_sua['id'], dl_moi, gia_moi)
-                    st.success("Đã cập nhật Deadline và Giá tiền mới vào Két sắt!")
+                    db.sua_thong_tin_task(t_sua['id'], duration_upd, cutoff_upd, deadline_upd, gia_upd)
+                    st.success("Đã cập nhật Thông số Thời gian và Giá tiền mới vào Két sắt!")
                     st.rerun()
         else:
             st.info("Chưa có task nào để sửa (hoặc tất cả đã được thanh toán).")

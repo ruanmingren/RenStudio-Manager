@@ -94,7 +94,9 @@ def hien_thi():
     for t in task_dang_lam:
         thong_bao_han, mau_sac = tinh_ngay_con_lai(t.get('deadline', ''))
         with st.expander(f"🔥 [{t.get('project')}] {t.get('name')}", expanded=True):
-            st.markdown(f"**Deadline:** {t.get('deadline')} | <span style='color:{mau_sac}; font-weight:bold'>{thong_bao_han}</span>", unsafe_allow_html=True)
+            
+            # Đã đổi thành Hạn Nộp Cá Nhân
+            st.markdown(f"**Hạn Nộp Cá Nhân:** {t.get('deadline', 'Chưa có')} | <span style='color:{mau_sac}; font-weight:bold'>{thong_bao_han}</span>", unsafe_allow_html=True)
             st.write(f"💵 Thù lao: **{t.get('reward', 0):,} đ**")
             
             if t.get("status") == "Revise":
@@ -114,8 +116,7 @@ def hien_thi():
 
     # 4. BÀI ĐÃ NỘP (ĐANG CHỜ DUYỆT)
     st.subheader("⏳ Bài đã nộp (Đang chờ duyệt)")
-    # BỘ LỌC BẤT TỬ: Lấy tất cả task KHÁC Open, Done, In_Progress, Revise
-    # THÊM BẢO VỆ MỚI: Loại bỏ cả các task đã "Paid" (Sếp đã trả tiền)
+    # BỘ LỌC BẤT TỬ: Lấy tất cả task KHÁC Open, Done, Paid, In_Progress, Revise
     task_cho = [t for t in tasks if t.get("assignee") == ten_nhan_su and t.get("status") not in ["Open", "Done", "Paid", "In_Progress", "Revise"]]
     
     if not task_cho: st.caption("Hiện không có bài nào đang chờ duyệt.")
@@ -123,7 +124,7 @@ def hien_thi():
         tt_hien_tai = t.get("status")
         if tt_hien_tai == "Pending_Leader": tt_text = "Chờ Leader"
         elif tt_hien_tai == "Pending_Boss": tt_text = "Chờ Sếp duyệt"
-        else: tt_text = f"Đang chờ ({tt_hien_tai})" # Hiển thị luôn lỗi sai chữ của Leader để Sếp dễ bắt giò
+        else: tt_text = f"Đang chờ ({tt_hien_tai})"
         
         with st.expander(f"⏳ **[{t.get('project')}] {t.get('name')}** — *{tt_text}*"):
             st.markdown(f"🔗 **Link hiện tại:** [Xem file nộp]({t.get('Submission_Link', '')})")
@@ -157,13 +158,13 @@ def hien_thi():
         st.info("Chợ đang trống hoặc Sếp chưa giao Task thuộc chuyên môn (Tag) của bạn.")
         
     for t in task_tren_cho:
-        thong_bao_han, mau_sac = tinh_ngay_con_lai(t.get('deadline', ''))
         with st.container(border=True):
             col_a, col_b = st.columns([3, 1])
             with col_a:
                 st.markdown(f"**[{t.get('project')}] {t.get('name')}**")
                 st.markdown(f"Khâu: `{t.get('tag')}` | Giá: **{t.get('reward', 0):,} đ**")
-                st.markdown(f"<span style='color:{mau_sac}'>{thong_bao_han}</span> (Hạn: {t.get('deadline')})", unsafe_allow_html=True)
+                # HIỂN THỊ LOGIC MỚI TRÊN CHỢ TASK
+                st.markdown(f"⏱️ **Cho phép làm:** `{t.get('duration', 0)} ngày` | 🚨 **Hạn chót:** `{t.get('cutoff_date', 'N/A')}`")
             with col_b:
                 if st.button("🚀 Đăng ký", key=f"nhan_{t.get('id')}", use_container_width=True):
                     db.nhan_task(t.get("id"), ten_nhan_su)

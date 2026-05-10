@@ -117,10 +117,11 @@ def them_du_an(ten_du_an):
     st.cache_data.clear()
     return True
 
-def them_task_moi(project, name, tag, rank, reward, deadline):
+def them_task_moi(project, name, tag, rank, reward, duration, cutoff_date):
     task_moi = {
         "project": project, "name": name, "tag": tag, "rank": rank,
-        "reward": int(reward), "status": "Open", "deadline": deadline,
+        "reward": int(reward), "status": "Open", 
+        "duration": int(duration), "cutoff_date": cutoff_date, "deadline": "", # deadline sẽ được tính khi có người nhận
         "assignee": "", "Submission_Link": "", "Leader_Feedback": "",
         "retake_count": 0, "completed_at": "" 
     }
@@ -128,20 +129,52 @@ def them_task_moi(project, name, tag, rank, reward, deadline):
     st.cache_data.clear()
     
     # Báo Discord
-    gui_thong_bao_discord(f"🎬 **SẾP TUNG TASK MỚI:** `[{project}] {name}`\n🏷️ Khâu: **{tag}** | 💰 Thù lao: **{reward:,} đ**\n👉 Anh em lên Chợ nhận việc ngay nhé!")
+    gui_thong_bao_discord(f"🎬 **SẾP TUNG TASK MỚI:** `[{project}] {name}`\n🏷️ Khâu: **{tag}** | 💰 Thù lao: **{reward:,} đ**\n⏱️ Thời gian làm: **{duration} ngày** (Hạn chót nhận: **{cutoff_date}**)\n👉 Anh em lên Chợ nhận việc ngay nhé!")
     return True
 
 def nhan_task(task_id, user_name):
-    # Lấy thông tin task để báo cáo
+    # Lấy thông tin task để tính toán thời gian
     t_doc = db.collection("tasks").document(task_id).get()
     t_data = t_doc.to_dict() if t_doc.exists else {}
     
+    # ----------------------------------------------------
+    # MA THUẬT TÍNH DEADLINE KHI NHẬN TASK
+    # ----------------------------------------------------
+    duration = t_data.get('duration')
+    cutoff_str = t_data.get('cutoff_date', '')
+    
+    if duration is not None:
+        # Nếu là task mới có thông số duration
+        duration = int(duration)
+        now = datetime.datetime.now()
+        nam_hien_tai = now.year
+        
+        # 1. Tính hạn lý thuyết (Hôm nay + số ngày làm)
+        target_date = now + datetime.timedelta(days=duration)
+        final_deadline_date = target_date
+        
+        # 2. So sánh với Hạn chót tuyệt đối (Nếu có)
+        if cutoff_str:
+            try:
+                cutoff_dt = datetime.datetime.strptime(f"{cutoff_str}/{nam_hien_tai}", "%d/%m/%Y")
+                if target_date > cutoff_dt:
+                    final_deadline_date = cutoff_dt # Bị ép xuống bằng hạn chót
+            except:
+                pass
+        
+        deadline_str = final_deadline_date.strftime("%d/%m")
+    else:
+        # Tương thích với các task cũ từ trước bản cập nhật
+        deadline_str = t_data.get('deadline', '')
+
+    # ----------------------------------------------------
+    
     db.collection("tasks").document(task_id).update({
-        "status": "In_Progress", "assignee": user_name
+        "status": "In_Progress", "assignee": user_name, "deadline": deadline_str
     })
     st.cache_data.clear()
     
-    gui_thong_bao_discord(f"🚀 **{user_name}** vừa xí phần Task: `[{t_data.get('project')}] {t_data.get('name')}`")
+    gui_thong_bao_discord(f"🚀 **{user_name}** vừa xí phần Task: `[{t_data.get('project')}] {t_data.get('name')}`\n⏰ Hệ thống chốt Hạn Nộp cá nhân: **{deadline_str}**")
     return True
 
 def nop_bai(task_id, link_drive):
@@ -189,7 +222,7 @@ def tra_lai_task(task_id):
     t_data = t_doc.to_dict() if t_doc.exists else {}
     
     db.collection("tasks").document(task_id).update({
-        "status": "Open", "assignee": ""
+        "status": "Open", "assignee": "", "deadline": "" # Trả về chợ thì xóa deadline đi để người sau nhận tính lại
     })
     st.cache_data.clear()
     
@@ -238,9 +271,11 @@ def xoa_task(task_id):
     
     return True
 
-def sua_thong_tin_task(task_id, deadline_moi, gia_tien_moi):
+def sua_thong_tin_task(task_id, duration_moi, cutoff_moi, deadline_moi, gia_tien_moi):
     db.collection("tasks").document(task_id).update({
-        "deadline": deadline_moi,
+        "duration": int(duration_moi),
+        "cutoff_date": cutoff_moi,
+        "deadline": deadline_moi, # Cập nhật luôn deadline thủ công nếu Sếp muốn chèn ép Artist =))
         "reward": int(gia_tien_moi)
     })
     st.cache_data.clear()
